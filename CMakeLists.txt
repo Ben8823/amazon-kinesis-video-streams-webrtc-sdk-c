@@ -8,7 +8,7 @@ option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
 option(USE_OPENSSL "Use openssl as crypto library" ON)
 option(USE_MBEDTLS "Use mbedtls as crypto library" OFF)
-option(BUILD_STATIC_LIBS "Build all libraries statically. (This includes third-party libraries.)" OFF)
+option(BUILD_STATIC_LIBS "Build all libraries statically. (This includes third-party libraries.)" ON)
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
 option(BUILD_LIBSRTP_HOST_PLATFORM "If buildng LibSRTP what is the current platform" OFF)
 option(BUILD_LIBSRTP_DESTINATION_PLATFORM "If buildng LibSRTP what is the destination platform" OFF)
@@ -80,7 +80,7 @@ if(BUILD_DEPENDENCIES)
   endif()
 
 
-  set(BUILD_ARGS -DBUILD_STATIC_LIBS=${BUILD_STATIC_LIBS}
+  set(BUILD_ARGS -DBUILD_STATIC=${BUILD_STATIC_LIBS}
                  -DOPENSSL_DIR=${OPEN_SRC_INSTALL_PREFIX}
                  -DUSE_OPENSSL=${USE_OPENSSL}
                  -DUSE_MBEDTLS=${USE_MBEDTLS})
@@ -136,10 +136,11 @@ else()
 endif()
 
 # usrsctp dont support pkgconfig yet
-find_library(
-  Usrsctp
-  NAMES ${USRSCTP_LIBNAME} usrsctp REQUIRED
-  PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+ if (BUILD_STATIC_LIBS)
+  find_library(Usrsctp NAMES ${USRSCTP_LIBNAME} libusrsctp.a REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+else()
+  find_library(Usrsctp NAMES ${USRSCTP_LIBNAME} libusrsctp.so REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+endif()
 
 set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${LIBSRTP_INCLUDE_DIRS}
                           ${CURL_INCLUDE_DIRS} ${LIBWEBSOCKETS_INCLUDE_DIRS})
@@ -269,6 +270,7 @@ add_library(kvsWebrtcSignalingClient ${LINKAGE} ${WEBRTC_SIGNALING_CLIENT_SOURCE
 
 target_link_libraries(
   kvsWebrtcSignalingClient
+  PUBLIC kvsCommonLws
   PRIVATE kvspicUtils
           kvspicState
           ${CMAKE_THREAD_LIBS_INIT}
@@ -276,8 +278,7 @@ target_link_libraries(
           ${EXTRA_DEPS}
           ${OPENSSL_SSL_LIBRARY}
           ${OPENSSL_CRYPTO_LIBRARY}
-          ${MBEDTLS_LIBRARIES}
-  PUBLIC kvsCommonLws)
+          ${MBEDTLS_LIBRARIES})
 
 if (WIN32)
   target_link_libraries(kvsWebrtcClient PRIVATE "Ws2_32" "iphlpapi")
